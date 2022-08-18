@@ -2,6 +2,12 @@ import bitarray
 
 
 def compress_file(pathLoad: str, pathSave: str):
+    """Архивирует файл
+
+    Args:
+        pathLoad (str): Путь до файла
+        pathSave (str): Путь сохранения
+    """
     with open(pathLoad, "rb") as f:
         bytes = bytearray(f.read())
 
@@ -27,7 +33,7 @@ def compress_file(pathLoad: str, pathSave: str):
     bitDepth = len(decimal_to_binary(len(dictionary) - 1))
     bitDepth2 = decimal_to_binary(bitDepth)
     bites = "0" * (8 - len(bitDepth2)) + bitDepth2
-    
+
     for i in encoded:
         dv = decimal_to_binary(i)
         left = "0" * (bitDepth - len(dv))
@@ -37,10 +43,10 @@ def compress_file(pathLoad: str, pathSave: str):
 
     with open(pathSave, 'wb') as f:
         f.write(bitarr)
-    
-    
+
+
 def decimal_to_binary(n: int):
-    """Переводит из десятичной в двоичную
+    """Переводит число из десятичной в двоичную систему
 
     Args:
         n (int): Десятичное число
@@ -57,13 +63,22 @@ def decimal_to_binary(n: int):
 
 
 def decompress_file(pathLoad: str, pathSave: str):
+    """Разархивирует файл
+
+    Args:
+        pathLoad (str): Путь до файла
+        pathSave (str): Путь сохранения
+    """
     bites = bitarray.bitarray()
     with open(pathLoad, 'rb') as f:
         bites.fromfile(f)
-        
+
     bitDepth = int(binary_to_decimal(str(bites[0:8])[10:-2]))
     a = (len(bites) - 8) - ((len(bites) - 8) // bitDepth) * bitDepth
-    bites = bites[8:-a]
+    if a != 0:
+        bites = bites[8:-a]
+    else:
+        bites = bites[8:]
     count = 0
     current = ""
     encoded = list()
@@ -78,7 +93,7 @@ def decompress_file(pathLoad: str, pathSave: str):
             current = str(bit)
             count = 1
     encoded.append(binary_to_decimal(current))
-    
+
     bytes = list()
 
     nextCode = 0
@@ -95,7 +110,8 @@ def decompress_file(pathLoad: str, pathSave: str):
             continue
         if code in dictionary:
             bytes += dictionary[code]
-            dictionary[nextCode] = dictionary[previousCode] + (dictionary[code][0],)
+            value = dictionary[previousCode] + (dictionary[code][0],)
+            dictionary[nextCode] = value
         else:
             s = dictionary[previousCode] + (dictionary[previousCode][0],)
             bytes += s
@@ -107,7 +123,7 @@ def decompress_file(pathLoad: str, pathSave: str):
 
 
 def binary_to_decimal(s: str):
-    """Переводит из двоичной в десятичную
+    """Переводит число из двоичной в десятичную систему
 
     Args:
         s (str): Двоичное число
@@ -123,12 +139,3 @@ def binary_to_decimal(s: str):
             result += 2 ** power
         power += 1
     return result
-
-
-inp = input()
-save = "/Users/faddey/Desktop/compressed2"
-
-decompress_file(inp, save)
-#encoded = bitarray.bitarray()
-#with open(save, 'rb') as f:
-#    encoded.fromfile(f)
