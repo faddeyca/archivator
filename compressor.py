@@ -10,6 +10,10 @@ def compress_file(pathLoad: str, pathSave: str):
     """
     with open(pathLoad, "rb") as f:
         bytes = bytearray(f.read())
+        
+    if len(bytes) == 0:
+        with open(pathSave, "wb") as f:
+            return
 
     nextCode = 0
     dictionary = dict()
