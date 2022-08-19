@@ -17,10 +17,16 @@ with open("messages.txt", 'r', encoding="utf-8") as f:
 
 
 def compress(pathLoad: str, pathSave: str=None):
+    """Архивирует рекурсивно каталог или файл
+
+    Args:
+        pathLoad (str): Пусть до каталога или файла
+        pathSave (str, optional): Путь сохранения. По умолчанию сохраняет в той же директории
+    """
     if not os.path.exists(pathLoad):
         print(msg[4])
         return -1
-    
+
     if os.path.isfile(pathLoad):
         if pathSave is None:
             return compress_file(pathLoad, pathLoad + ".faddey")
@@ -31,7 +37,9 @@ def compress(pathLoad: str, pathSave: str=None):
     if pathSave is None:
         files = os.listdir(pathLoad)
         for file in files:
-            compress(pathLoad + slash + file, file)
+            res = compress(pathLoad + slash + file, file)
+            if res != 0:
+                return res
         directory = os.path.dirname(pathLoad) + slash
         tar = tarfile.open(directory + name + ".faddey", "w:")
         for file in files:
@@ -45,11 +53,18 @@ def compress(pathLoad: str, pathSave: str=None):
         os.makedirs(name)
         dirList = os.listdir(pathLoad)
         for name in dirList:
-            compress(pathLoad + slash + name, pathSave + slash + name)
+            res = compress(pathLoad + slash + name, pathSave + slash + name)
+            if res != 0:
+                return res
     return 0
 
 
 def delete_folder(path: str):
+    """Удаляет каталог
+
+    Args:
+        path (str): Путь до каталога
+    """
     if os.path.isdir(path):
         files = os.listdir(path)
         for file in files:
@@ -57,9 +72,15 @@ def delete_folder(path: str):
         os.rmdir(path)
     else:
         os.remove(path)
-    
 
-def decompress(pathLoad: str, pathSave: str=None):
+
+def decompress(pathLoad: str, isFirst: bool=False):
+    """Разрхивирует .faddey файл
+
+    Args:
+        pathLoad (str): Пусть до .faddey файла
+        isFirst (bool, optional): Флаг означающий корень рекурсии. По умолчанию False
+    """
     if not os.path.exists(pathLoad):
         print(msg[4])
         return -1
@@ -67,31 +88,41 @@ def decompress(pathLoad: str, pathSave: str=None):
     if os.path.isdir(pathLoad):
         dirList = os.listdir(pathLoad)
         for name in dirList:
-            decompress(pathLoad + slash + name)
+            res = decompress(pathLoad + slash + name)
+            if res != 0:
+                return res
     elif tarfile.is_tarfile(pathLoad):
         extra = ""
         num = 2
-        directory = ""
-        while True:
-            try:
-                directory = "".join(pathLoad.split(".")[:-1]) + extra
-                os.makedirs(directory)
-                break
-            except:
+        directory = ".".join(pathLoad.split(".")[:-1]) + extra
+        while os.path.exists(directory):
+            extra = " " + str(num)
+            num += 1
+            directory = ".".join(pathLoad.split(".")[:-1]) + extra
+        tar = tarfile.open(pathLoad)
+        tar.extractall(".".join(pathLoad.split(".")[:-1]) + extra)
+        tar.close()
+        return decompress(directory)
+    else:
+        if isFirst:
+            extra = ""
+            num = 2
+            temp = pathLoad.split(".")
+            path = ".".join(temp[:-2]) + extra + "." + temp[-2:-1][0]
+            while os.path.exists(path):
                 extra = " " + str(num)
                 num += 1
-        tar = tarfile.open(pathLoad)
-        tar.extractall("".join(pathLoad.split(".")[:-1]) + extra)
-        tar.close()
-        decompress(directory)
-    else:
-        decompress_file(pathLoad, ".".join(pathLoad.split(".")[:-1]))
-        os.remove(pathLoad)
+                temp = pathLoad.split(".")
+                path = ".".join(temp[:-2]) + extra + "." + temp[-2:-1][0]
+            res = decompress_file(pathLoad, path)
+        else:
+            res = decompress_file(pathLoad, ".".join(pathLoad.split(".")[:-1]))
+            os.remove(pathLoad)
+        return res
     return 0
 
 
 a = sys.argv
-a = ['main.py', 'compress', '/Users/faddey/Desktop/untitled folder']
 if len(a) == 1:
     print(msg[0])
 elif a[1] == "help":
@@ -104,7 +135,7 @@ elif a[1] == "compress":
     else:
         print("Error")
 elif a[1] == "decompress":
-    res = decompress(" ".join(a[2:]))
+    res = decompress(" ".join(a[2:]), True)
     if res == 0:
         print("Done")
     else:

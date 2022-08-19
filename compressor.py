@@ -8,12 +8,12 @@ def compress_file(pathLoad: str, pathSave: str):
         pathLoad (str): Путь до файла
         pathSave (str): Путь сохранения
     """
-    with open(pathLoad, "rb") as f:
+    with open(pathLoad, 'rb') as f:
         bytes = bytearray(f.read())
-        
+
     if len(bytes) == 0:
-        with open(pathSave, "wb") as f:
-            return
+        with open(pathSave, 'wb') as f:
+            return 0
 
     nextCode = 0
     dictionary = dict()
@@ -48,6 +48,8 @@ def compress_file(pathLoad: str, pathSave: str):
     with open(pathSave, 'wb') as f:
         f.write(bitarr)
 
+    return 0
+
 
 def decimal_to_binary(n: int):
     """Переводит число из десятичной в двоичную систему
@@ -76,6 +78,10 @@ def decompress_file(pathLoad: str, pathSave: str):
     bites = bitarray.bitarray()
     with open(pathLoad, 'rb') as f:
         bites.fromfile(f)
+
+    if len(bites) == 0:
+        with open(pathSave, 'wb') as f:
+            return 0
 
     bitDepth = int(binary_to_decimal(str(bites[0:8])[10:-2]))
     a = (len(bites) - 8) - ((len(bites) - 8) // bitDepth) * bitDepth
@@ -124,6 +130,7 @@ def decompress_file(pathLoad: str, pathSave: str):
         previousCode = code
     with open(pathSave, "wb") as f:
         f.write(bytearray(bytes))
+    return 0
 
 
 def binary_to_decimal(s: str):
