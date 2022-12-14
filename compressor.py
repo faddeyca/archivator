@@ -1,25 +1,36 @@
 import bitarray
+import os
 
 
-def compress_file(pathLoad: str, pathSave: str):
+def compress_file(load_path: str, save_path: str):
     """Архивирует файл
 
     Args:
         pathLoad (str): Путь до файла
         pathSave (str): Путь сохранения
     """
-    with open(pathLoad, 'rb') as f:
+    file_name = os.path.basename(load_path)
+    
+    with open(load_path, 'rb') as f:
         bytes = bytearray(f.read())
 
     if len(bytes) == 0:
-        with open(pathSave, 'wb') as f:
+        with open(save_path, 'wb') as f:
             return 0
+        
+    hash_code = abs(hash(frozenset(bytes)))
+    hash_code = decimal_to_binary(hash_code)
+    
+    if len(hash_code) < 30:
+        hash_code += "0" * (30 - len(hash_code))
+    else:
+        hash_code = hash_code[:30]
 
-    nextCode = 0
+    next_code = 0
     dictionary = dict()
     for i in range(256):
-        dictionary[(i,)] = nextCode
-        nextCode += 1
+        dictionary[(i,)] = next_code
+        next_code += 1
 
     group = ()
     encoded = list()
@@ -29,24 +40,29 @@ def compress_file(pathLoad: str, pathSave: str):
             group = current
         else:
             encoded.append(dictionary[group])
-            dictionary[current] = nextCode
-            nextCode += 1
+            dictionary[current] = next_code
+            next_code += 1
             group = (byte,)
     encoded.append(dictionary[group])
 
-    bitDepth = len(decimal_to_binary(len(dictionary) - 1))
-    bitDepth2 = decimal_to_binary(bitDepth)
-    bites = "0" * (8 - len(bitDepth2)) + bitDepth2
+    bit_depth = len(decimal_to_binary(len(dictionary) - 1))
+    bit_depth_2 = decimal_to_binary(bit_depth)
+    bites = "0" * (8 - len(bit_depth_2)) + bit_depth_2
 
     for i in encoded:
         dv = decimal_to_binary(i)
-        left = "0" * (bitDepth - len(dv))
+        left = "0" * (bit_depth - len(dv))
         bites += (left + dv)
 
-    bitarr = bitarray.bitarray(bites)
+    bit_arr = bitarray.bitarray(hash_code + bites)
 
-    with open(pathSave, 'wb') as f:
-        f.write(bitarr)
+    with open(save_path, 'wb') as f:
+        f.write(bit_arr)
+        
+    k = os.path.getsize(save_path) / os.path.getsize(load_path)
+    k *= 100
+        
+    print(f"Процент сжатия {file_name} = {k}")
 
     return 0
 
@@ -68,7 +84,7 @@ def decimal_to_binary(n: int):
     return result[::-1]
 
 
-def decompress_file(pathLoad: str, pathSave: str):
+def decompress_file(load_path: str, save_path: str):
     """Разархивирует файл
 
     Args:
@@ -76,15 +92,21 @@ def decompress_file(pathLoad: str, pathSave: str):
         pathSave (str): Путь сохранения
     """
     bites = bitarray.bitarray()
-    with open(pathLoad, 'rb') as f:
+    with open(load_path, 'rb') as f:
         bites.fromfile(f)
+        
+    hash_code_input = str(bites[:30])
+    hash_code_input = hash_code_input[10:]
+    hash_code_input = hash_code_input[:-2]
+    
+    bites = bites[30:]
 
     if len(bites) == 0:
-        with open(pathSave, 'wb') as f:
+        with open(save_path, 'wb') as f:
             return 0
 
-    bitDepth = int(binary_to_decimal(str(bites[0:8])[10:-2]))
-    a = (len(bites) - 8) - ((len(bites) - 8) // bitDepth) * bitDepth
+    bit_depth = int(binary_to_decimal(str(bites[0:8])[10:-2]))
+    a = (len(bites) - 8) - ((len(bites) - 8) // bit_depth) * bit_depth
     if a != 0:
         bites = bites[8:-a]
     else:
@@ -92,10 +114,8 @@ def decompress_file(pathLoad: str, pathSave: str):
     count = 0
     current = ""
     encoded = list()
-    lol = 0
     for bit in bites:
-        lol += 1
-        if count < bitDepth:
+        if count < bit_depth:
             current += str(bit)
             count += 1
         else:
@@ -106,29 +126,36 @@ def decompress_file(pathLoad: str, pathSave: str):
 
     bytes = list()
 
-    nextCode = 0
+    next_code = 0
     dictionary = dict()
     for i in range(256):
-        dictionary[nextCode] = (i,)
-        nextCode += 1
+        dictionary[next_code] = (i,)
+        next_code += 1
 
-    previousCode = -1
+    previous_code = -1
     for code in encoded:
-        if previousCode == -1:
+        if previous_code == -1:
             bytes += dictionary[code]
-            previousCode = code
+            previous_code = code
             continue
         if code in dictionary:
             bytes += dictionary[code]
-            value = dictionary[previousCode] + (dictionary[code][0],)
-            dictionary[nextCode] = value
+            value = dictionary[previous_code] + (dictionary[code][0],)
+            dictionary[next_code] = value
         else:
-            s = dictionary[previousCode] + (dictionary[previousCode][0],)
+            s = dictionary[previous_code] + (dictionary[previous_code][0],)
             bytes += s
-            dictionary[nextCode] = s
-        nextCode += 1
-        previousCode = code
-    with open(pathSave, "wb") as f:
+            dictionary[next_code] = s
+        next_code += 1
+        previous_code = code
+    
+    hash_code = abs(hash(frozenset(bytes)))   
+    hash_code = decimal_to_binary(hash_code)[:30]
+    
+    if hash_code != hash_code_input:
+        raise "Файл был повреждён"
+    
+    with open(save_path, "wb") as f:
         f.write(bytearray(bytes))
     return 0
 
